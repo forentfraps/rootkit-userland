@@ -5,6 +5,8 @@
 #include <Windows.h>
 #include <winternl.h>
 #include <inttypes.h>
+#include <tlhelp32.h>
+
 // #include "Zydis.h"
 
 
