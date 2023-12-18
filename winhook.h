@@ -21,6 +21,7 @@
 
 typedef struct hook_info{
     LPVOID catalyst;
+    int sz;
     unsigned char bytes[32];
 } HookInfo;
 
