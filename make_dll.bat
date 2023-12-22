@@ -1,1 +1,1 @@
-gcc dll_main.c winhook.o -shared -o inf.dll
+gcc dll_main.c winhook.o win_intern.c -shared -o inf.dll
