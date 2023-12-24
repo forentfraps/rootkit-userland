@@ -8,7 +8,7 @@ Current Features:
  - Hiding the dll from loaded modules via parsing PEB (Sadly VAD tree and EPROCESS could not be altered, due to ring3 limitations)
 
 Current TODO:
- - Hide from the explorer (will not show in the directory)
+ - Hide from the explorer (will not show in the directory). Apparently explorer does not use NtQueryDirectoryFileEx to view files!
 	 - hook NtQueryDirectoryFileEx
  - Hide the AppInit registry key, and the fact that AppInit is enabled at all
  - Hook opening files to read (ntdll.dll), so that when the buffer is read, altered version is received, with hooks already installed
