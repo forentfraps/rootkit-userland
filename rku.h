@@ -8,6 +8,9 @@
 // #include <dbgeng.h>
 // #include <ntifs.h>
 
+#define HIDE_ME "notepad.exe"
+#define LHIDE_ME L"notepad.exe"
+
 typedef struct _MY_LDR_DATA_TABLE_ENTRY
 {
     LIST_ENTRY InLoadOrderLinks;
@@ -106,7 +109,7 @@ unsigned int crc32s(const wchar_t *message);
 unsigned int crc32c(const unsigned char *message);
 int custom_wcscmp(const wchar_t *str1, const wchar_t *str2);
 int custom_strcmp(const char *str1, const char *str2);
-int custom_ucscmp(const UNICODE_STRING str1, const UNICODE_STRING str2);
+int custom_ucscmp(const wchar_t* str1,int len1, const wchar_t* str2, int len2);
 FARPROC _GetProcAddress(HMODULE hModule, LPCSTR lpProcName);
 HMODULE _GetModuleHandle(LPCWSTR lModuleName);
 FARPROC _GetProcAddressNative(LPCSTR lpProcName);

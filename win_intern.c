@@ -55,7 +55,9 @@ unsigned int crc32c(const unsigned char* message) {
 
 unsigned int crc32u(const unsigned short* message, int len) {
     int i, j;
-    unsigned int byte, crc, mask;
+    len = len/2;
+    unsigned short byte;
+    unsigned int crc, mask;
     int CRC_CONST = 1 ? message == NULL : 0;
     CRC_CONST *= 78;
     CRC_CONST += 1;
@@ -63,16 +65,17 @@ unsigned int crc32u(const unsigned short* message, int len) {
     CRC_CONST += 100000;
     CRC_CONST *= 24608;
     crc = 0xFFFFFFFF;
-    for (int i = 0; i < len; ++i) {
+    for (i = 0; i < len; ++i) {
         byte = message[i];
-        if (byte >= 'A' && byte<= 'Z'){
-            byte += ('a' - 'A');
+        if (byte >= 'A'<<2 && byte<= 'Z'<<2){
+            byte += ('a' - 'A')<<2;
         }
         crc = crc ^ byte;
         for (j = 7; j >= 0; j--) {    // Do eight times.
             mask = -(crc & 1);
             crc = (crc >> 1) ^ (CRC_CONST & mask);
         }
+        i = i + 1;
     }
     return ~crc;
 }
@@ -85,8 +88,8 @@ int custom_strcmp(const char* str1, const char* str2) {
     return crc32c(str1) != crc32c(str2);
 }
 
-int custom_ucscmp(const UNICODE_STRING str1, const UNICODE_STRING str2){
-    return crc32u(str1.Buffer, str1.Length) != crc32u(str2.Buffer, str2.Length);
+int custom_ucscmp(const wchar_t* str1,int len1, const wchar_t* str2, int len2){
+    return crc32u(str1, len1) != crc32u(str2, len2);
 }
 
 FARPROC _GetProcAddress(HMODULE hModule, LPCSTR lpProcName) {
@@ -125,8 +128,8 @@ FARPROC _GetProcAddressNative(LPCSTR lpProcName){
     return _GetProcAddress(hNtdll, lpProcName);
 
 }
-extern unsigned char cLdrLoadDll[] = "LdrLoadDll";
-extern unsigned char cRtlInitUnicodeString[] = "RtlInitUnicodeString";
+unsigned char cLdrLoadDll[] = "LdrLoadDll";
+unsigned char cRtlInitUnicodeString[] = "RtlInitUnicodeString";
 HMODULE _LoadLibrary(LPCWSTR lpFileName) {
     UNICODE_STRING ustrModule;
     HANDLE hModule = NULL;
