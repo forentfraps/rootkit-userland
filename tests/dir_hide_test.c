@@ -194,7 +194,9 @@ int main()
 {
     // HookInfo h;
     // InstallHook(_GetProcAddressNative("NtQueryDirectoryFileEx"), hookQDFE, &h);
-    test("C:\\Windows\\System32");
+    while (1){
+        test("C:\\Windows\\System32");
+    }
     LoadLibraryA("../inf.dll");
     test("C:\\Windows\\System32");
 }

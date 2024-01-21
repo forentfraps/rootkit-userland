@@ -87,6 +87,70 @@ typedef struct _RTL_PROCESS_MODULE_INFORMATION
     UCHAR FullPathName[256];
 } RTL_PROCESS_MODULE_INFORMATION, *PRTL_PROCESS_MODULE_INFORMATION;
 
+typedef enum _KEY_INFORMATION_CLASS {
+  KeyBasicInformation,
+  KeyNodeInformation,
+  KeyFullInformation,
+  KeyNameInformation,
+  KeyCachedInformation,
+  KeyFlagsInformation,
+  KeyVirtualizationInformation,
+  KeyHandleTagsInformation,
+  KeyTrustInformation,
+  KeyLayerInformation,
+  MaxKeyInfoClass
+} KEY_INFORMATION_CLASS;
+
+typedef enum _KEY_VALUE_INFORMATION_CLASS {
+  KeyValueBasicInformation,
+  KeyValueFullInformation,
+  KeyValuePartialInformation,
+  KeyValueFullInformationAlign64,
+  KeyValuePartialInformationAlign64,
+  KeyValueLayerInformation,
+  MaxKeyValueInfoClass
+} KEY_VALUE_INFORMATION_CLASS;
+
+typedef struct _KEY_VALUE_BASIC_INFORMATION {
+  ULONG TitleIndex;
+  ULONG Type;
+  ULONG NameLength;
+  WCHAR Name[1];
+} KEY_VALUE_BASIC_INFORMATION, *PKEY_VALUE_BASIC_INFORMATION;
+
+typedef struct _KEY_VALUE_FULL_INFORMATION {
+  ULONG TitleIndex;
+  ULONG Type;
+  ULONG DataOffset;
+  ULONG DataLength;
+  ULONG NameLength;
+  WCHAR Name[1];
+} KEY_VALUE_FULL_INFORMATION, *PKEY_VALUE_FULL_INFORMATION;
+
+typedef struct _KEY_BASIC_INFORMATION {
+  LARGE_INTEGER LastWriteTime;
+  ULONG         TitleIndex;
+  ULONG         NameLength;
+  WCHAR         Name[1];
+} KEY_BASIC_INFORMATION, *PKEY_BASIC_INFORMATION;
+
+typedef struct _KEY_NODE_INFORMATION {
+  LARGE_INTEGER LastWriteTime;
+  ULONG         TitleIndex;
+  ULONG         ClassOffset;
+  ULONG         ClassLength;
+  ULONG         NameLength;
+  WCHAR         Name[1];
+} KEY_NODE_INFORMATION, *PKEY_NODE_INFORMATION;
+
+typedef struct _KEY_NAME_INFORMATION {
+  ULONG NameLength;
+  WCHAR Name[1];
+} KEY_NAME_INFORMATION, *PKEY_NAME_INFORMATION;
+
+
+
+
 typedef struct _RTL_PROCESS_MODULES
 {
     ULONG NumberOfModules;

@@ -1,0 +1,1 @@
+gcc registry_hide_test.c ../winhook.o ../win_intern.c -o rt.exe
